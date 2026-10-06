@@ -7,6 +7,8 @@ services:
       POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
+    volumes:
+      - ./sql/create_test_db.sql:/docker-entrypoint-initdb.d/create_test_db.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d org_hierarchy"]
       interval: 2s
