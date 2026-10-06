@@ -6,6 +6,7 @@ from pathlib import Path
 import psycopg2
 import pytest
 
+from org_hierarchy.cli import main
 from org_hierarchy.colleagues import UnitLookupError, find_colleagues
 from org_hierarchy.db import connect
 from org_hierarchy.importer import (
@@ -36,9 +37,16 @@ def conn():
         connection = connect(TEST_DSN)
     except psycopg2.OperationalError:
         pytest.skip('Тестовая база недоступна, запустите docker compose up -d')
+    # CLI сам открывает соединение по DATABASE_URL - направляем его туда же.
+    old_dsn = os.environ.get('DATABASE_URL')
+    os.environ['DATABASE_URL'] = TEST_DSN
     import_records(connection, load_records(DATA_PATH))
     yield connection
     connection.close()
+    if old_dsn is None:
+        del os.environ['DATABASE_URL']
+    else:
+        os.environ['DATABASE_URL'] = old_dsn
 
 
 def test_example_from_task(conn):
@@ -103,3 +111,17 @@ def test_load_records_rejects_empty_file(tmp_path):
     path.write_text('[]', encoding='utf-8')
     with pytest.raises(ImportDataError):
         load_records(path)
+
+
+def test_cli_find(conn, capsys):
+    """Команда find печатает офис и сотрудников."""
+    assert main(['find', '3']) == 0
+    output = capsys.readouterr().out
+    assert SPB in output
+    assert 'Сидоров' in output
+
+
+def test_cli_find_error(conn, capsys):
+    """Команда find для отдела завершается с кодом 1."""
+    assert main(['find', '2']) == 1
+    assert 'не найден' in capsys.readouterr().err
