@@ -6,6 +6,7 @@ from pathlib import Path
 import psycopg2
 import pytest
 
+from org_hierarchy.colleagues import UnitLookupError, find_colleagues
 from org_hierarchy.db import connect
 from org_hierarchy.importer import (
     ImportDataError,
@@ -20,6 +21,12 @@ TEST_DSN = os.environ.get(
     'TEST_DATABASE_URL',
     'postgresql://postgres:postgres@localhost:5432/org_hierarchy_test',
 )
+SPB = 'Офис в Санкт-Петербурге'
+MOSCOW = 'Офис в Москве'
+MOSCOW_EMPLOYEES = [
+    'Винтиков', 'Шпунтиков', 'Белова', 'Крылова',
+    'Петрова', 'Иванова', 'Морозов',
+]
 
 
 @pytest.fixture(scope='module')
@@ -32,6 +39,24 @@ def conn():
     import_records(connection, load_records(DATA_PATH))
     yield connection
     connection.close()
+
+
+def test_example_from_task(conn):
+    """Пример из задания: id=3 даёт сотрудников офиса Санкт-Петербурга."""
+    assert find_colleagues(conn, 3) == (SPB, ['Иванов', 'Сидоров', 'Петров'])
+
+
+@pytest.mark.parametrize('employee_id', [9, 13, 17, 20])
+def test_nested_departments(conn, employee_id):
+    """Сотрудники вложенных отделов находят весь московский офис."""
+    assert find_colleagues(conn, employee_id) == (MOSCOW, MOSCOW_EMPLOYEES)
+
+
+@pytest.mark.parametrize('unit_id', [1, 2, 12, 999])
+def test_not_an_employee(conn, unit_id):
+    """Офис, отдел или несуществующий id дают ошибку поиска."""
+    with pytest.raises(UnitLookupError):
+        find_colleagues(conn, unit_id)
 
 
 def test_reimport_is_idempotent(conn):
