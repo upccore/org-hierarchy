@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - ./sql/create_test_db.sql:/docker-entrypoint-initdb.d/create_test_db.sql
     healthcheck:

@@ -4,6 +4,7 @@ import argparse
 import sys
 
 import psycopg2
+from psycopg2.errors import UndefinedTable
 
 from org_hierarchy.colleagues import UnitLookupError, find_colleagues
 from org_hierarchy.db import connect
@@ -72,6 +73,10 @@ def main(argv=None):
     except (OSError, ValueError) as error:
         print(f'Ошибка чтения файла: {error}', file=sys.stderr)
         return 1
+    except UndefinedTable:
+        print('Ошибка: данные ещё не загружены, сначала выполните '
+              '"python app.py import data.json"', file=sys.stderr)
+        return 3
     except psycopg2.Error as error:
         print(f'Ошибка базы данных: {error}', file=sys.stderr)
         return 3

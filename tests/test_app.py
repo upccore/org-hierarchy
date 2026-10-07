@@ -5,6 +5,7 @@ from pathlib import Path
 
 import psycopg2
 import pytest
+from psycopg2.errors import UndefinedTable
 
 from org_hierarchy.cli import main
 from org_hierarchy.colleagues import UnitLookupError, find_colleagues
@@ -125,3 +126,23 @@ def test_cli_find_error(conn, capsys):
     """Команда find для отдела завершается с кодом 1."""
     assert main(['find', '2']) == 1
     assert 'не найден' in capsys.readouterr().err
+
+
+class FakeConnection:
+    """Соединение-заглушка для тестов CLI без базы."""
+
+    def close(self):
+        """Ничего не делать при закрытии."""
+
+
+def test_cli_find_before_import(monkeypatch, capsys):
+    """Команда find без загруженных данных подсказывает выполнить import."""
+    def raise_undefined_table(conn, employee_id):
+        """Сымитировать отсутствие таблицы org_unit."""
+        raise UndefinedTable()
+
+    monkeypatch.setattr('org_hierarchy.cli.connect', FakeConnection)
+    monkeypatch.setattr('org_hierarchy.cli.find_colleagues',
+                        raise_undefined_table)
+    assert main(['find', '3']) == 3
+    assert 'import data.json' in capsys.readouterr().err

@@ -32,6 +32,17 @@ python app.py find 3
 export DATABASE_URL=postgresql://user:password@host:5432/dbname
 ```
 
+Если порт 5432 уже занят (например, локальным PostgreSQL), запустите
+контейнер на другом порту и укажите его в `DATABASE_URL` и
+`TEST_DATABASE_URL`:
+
+```bash
+export POSTGRES_PORT=5433
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5433/org_hierarchy
+export TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/org_hierarchy_test
+docker compose up -d --wait
+```
+
 Команды:
 
 - `python app.py import <файл.json>` - создать таблицу, если её нет, и
@@ -40,7 +51,7 @@ export DATABASE_URL=postgresql://user:password@host:5432/dbname
 
 Если что-то пошло не так, программа пишет ошибку и завершается с кодом 1
 (неверные данные или id), 2 (неверные аргументы командной строки) или
-3 (проблема с базой).
+3 (проблема с базой, в том числе если `find` вызван до `import`).
 
 ## Как это работает
 
