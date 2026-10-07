@@ -1,6 +1,6 @@
 """Поиск всех сотрудников офиса по идентификатору сотрудника."""
 
-from org_hierarchy.db import EMPLOYEE, OFFICE
+from org_hierarchy.db import DEPARTMENT, EMPLOYEE, OFFICE
 
 # Сначала поднимаемся от сотрудника вверх до офиса, затем спускаемся от
 # офиса вниз по всем отделам и забираем сотрудников. Название офиса
@@ -32,8 +32,28 @@ ORDER BY id
 """
 
 
+FIND_UNIT_SQL = 'SELECT name, type FROM org_unit WHERE id = %s'
+
+UNIT_TYPE_NAMES = {
+    OFFICE: 'офис',
+    DEPARTMENT: 'отдел',
+}
+
+
 class UnitLookupError(Exception):
-    """Сотрудник с таким id не найден."""
+    """Сотрудник с таким id не найден или id принадлежит не сотруднику."""
+
+
+def describe_missing_employee(conn, employee_id):
+    """Объяснить, почему по id не нашёлся сотрудник."""
+    with conn.cursor() as cur:
+        cur.execute(FIND_UNIT_SQL, (employee_id,))
+        unit = cur.fetchone()
+    if unit is None:
+        return f'запись с id={employee_id} не найдена'
+    name, unit_type = unit
+    return (f'id={employee_id} - это {UNIT_TYPE_NAMES[unit_type]} '
+            f'«{name}», а не сотрудник')
 
 
 def find_colleagues(conn, employee_id):
@@ -47,5 +67,5 @@ def find_colleagues(conn, employee_id):
         cur.execute(FIND_COLLEAGUES_SQL, params)
         rows = cur.fetchall()
     if not rows:
-        raise UnitLookupError(f'сотрудник с id={employee_id} не найден')
+        raise UnitLookupError(describe_missing_employee(conn, employee_id))
     return rows[0][0], [name for _, name in rows]

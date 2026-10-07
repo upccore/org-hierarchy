@@ -61,11 +61,18 @@ def test_nested_departments(conn, employee_id):
     assert find_colleagues(conn, employee_id) == (MOSCOW, MOSCOW_EMPLOYEES)
 
 
-@pytest.mark.parametrize('unit_id', [1, 2, 12, 999])
-def test_not_an_employee(conn, unit_id):
-    """Офис, отдел или несуществующий id дают ошибку поиска."""
-    with pytest.raises(UnitLookupError):
+@pytest.mark.parametrize('unit_id, message', [
+    (1, 'id=1 - это офис «Офис в Санкт-Петербурге», а не сотрудник'),
+    (2, 'id=2 - это отдел «Отдел разработки», а не сотрудник'),
+    (12, 'id=12 - это отдел «Отдел обслуживания корпоративных клиентов», '
+         'а не сотрудник'),
+    (999, 'запись с id=999 не найдена'),
+])
+def test_not_an_employee(conn, unit_id, message):
+    """Офис, отдел или несуществующий id дают понятную ошибку поиска."""
+    with pytest.raises(UnitLookupError) as error:
         find_colleagues(conn, unit_id)
+    assert str(error.value) == message
 
 
 def test_reimport_is_idempotent(conn):
@@ -125,7 +132,7 @@ def test_cli_find(conn, capsys):
 def test_cli_find_error(conn, capsys):
     """Команда find для отдела завершается с кодом 1."""
     assert main(['find', '2']) == 1
-    assert 'не найден' in capsys.readouterr().err
+    assert 'это отдел' in capsys.readouterr().err
 
 
 class FakeConnection:
